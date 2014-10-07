@@ -12,6 +12,9 @@ function [q,eta,beta,dtlnbeta,params] = load_parameters(shape)
     params.sq    =  2.0;
     params.qxoff = -5.0;
 
+    params.summary_q = 0;
+    params.inverse_problem = 0;
+
     q = @(x,params) params.A.*exp(-((x-params.qxoff).^2)./((params.sq).^2));
 
     % Material background and RIP eta = no + dn*f(x,t)
