@@ -21,7 +21,7 @@ def copy(src, dest):
 def html_plot(src):
     plot.html_plot(outdir=src)
 
-def main_plot(outdir='./_output',multiple=False,overwrite=False):
+def main_plot(outdir='./_output',multiple=False,overwrite=False,savedir=None):
     if multiple:
         outdir = outdir+'*'
     
@@ -29,10 +29,14 @@ def main_plot(outdir='./_output',multiple=False,overwrite=False):
     print outdirs
     for dirs in outdirs:
         print dirs
-        if overwrite or not os.path.exists(os.path.join(outdir,'_plots')):
+        if overwrite or not os.path.exists('./_plots'):
             plot.html_plot(outdir=dirs)
-            copy('./_plots',os.path.join(dirs,'_plots'))
-            shutil.rmtree('./_plots')
+        if savedir is None:
+            savedir = os.path.join(dirs)
+        if not os.path.exists(savedir):
+            os.makedirs(os.path.join(savedir))
+        copy('./_plots',os.path.join(savedir,'_plots'))
+        shutil.rmtree('./_plots')
 
 if __name__ == "__main__":
     from clawpack.pyclaw import util

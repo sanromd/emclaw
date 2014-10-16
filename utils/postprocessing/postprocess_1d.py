@@ -26,7 +26,7 @@ from scipy.io import loadmat,savemat
 from matplotlib.streamplot import  streamplot
 
 # plot frame_plot_range together, define range
-frame_plot_range = range(1,101,1)
+frame_plot_range = range(1,201,1)
 
 def get_cmap(colormap='jet',num_colors=100):
     cmap = cm  = plt.get_cmap(colormap)
@@ -186,7 +186,7 @@ def assemble_q(path='./_output',frame_plot_range=[0],vecmagnitude=True,poynting=
 
     return Q,num_frames,derived_quantities
 
-def postprocess_1d(outdir='./_output',multiple=False,overwrite=False,sampling=5,velocity=True,save_mat=True,poly=False):
+def postprocess_1d(outdir='./_output',multiple=False,overwrite=False,sampling=5,velocity=True,save_mat=True,poly=False,lorentz=False):
     if multiple:
         outdir = outdir+'*'
 
@@ -195,13 +195,15 @@ def postprocess_1d(outdir='./_output',multiple=False,overwrite=False,sampling=5,
 
     for dirs in outdirs:
         print dirs
-        figspath = os.path.join('/simdesk/sandbox/emclaw/results/1D/nl-test','_figures')
+        #figspath = os.path.join(dirs,'_figures')
         binpath  = os.path.join(dirs,'_bin')
         base_name_dir = dirs.split('_')
         print base_name_dir
-        base_name = base_name_dir[3]+'_'+base_name_dir[4]+'_'#base_name_dir[-1]+'_' #base_name_dir[3]+'_'+base_name_dir[4]+'_'
+        base_name = base_name_dir[-1]+'_'
         print base_name
-        figspath = os.path.join('/simdesk/sandbox/emclaw/results/1D/nl-test',base_name_dir[3])
+        figspath = os.path.join('/simdesk/sandbox/emclaw/results/1D','__fiber_'+base_name_dir[-1])
+        vrip = 1.0/1.5
+
         if not os.path.exists(figspath): os.makedirs(figspath)
         if not os.path.exists(binpath): os.makedirs(binpath)
         
@@ -237,43 +239,38 @@ def postprocess_1d(outdir='./_output',multiple=False,overwrite=False,sampling=5,
             sampled[:,10] = np.gradient(sampled[:,9],sampled[2,0]-sampled[1,0])
 
             tt = sampled[6::sampling,0]
+            xx = sampled[6::sampling,1]
             dt = tt[1] - tt[0]
             dx = np.gradient(sampled[6::sampling,1],dt)
-            di = np.gradient(sampled[6::sampling,8],dt)
-            ds = np.gradient(sampled[6::sampling,10],dt)
+            di = np.gradient(sampled[6::sampling,7],dt)
+            ds = np.gradient(sampled[6::sampling,9],dt)
 
-            plot_together(sampled[6::sampling,0],sampled[6::sampling,1],sampled[6::sampling,2],
-                y1label='$x_{max}\quad (a.u.)$',y2label='$dx_{max}/dt\quad (a.u.)$',
-                figspath=figspath,figname=base_name+'xmax')
+            if lorentz:
+                gamma = 1.0/np.sqrt(1 - vrip**2)
+                xp  = gamma*(xx - v*tt)
+                tp  = gamma*(tt - v*xx)
+                dxp = np.gradient(xp,tp[1]-tp[0])
 
-            plot_together(sampled[6::sampling,0],sampled[6::sampling,7],sampled[6::sampling,8],
-                y1label='$I_{max}\quad (a.u.)$',y2label='$dI_{max}/dt\quad (a.u.)$',
-                figspath=figspath,figname=base_name+'imax')
+                plot_single(tp,dxp,ylabel='$dx_{max}/dt\quad (a.u.)$',
+                    figspath=figspath,figname=base_name+'dxpdtp_bis')
 
-            plot_together(sampled[6::sampling,0],sampled[6::sampling,9],sampled[6::sampling,10],
-                y1label='$|S|_{max}\quad (a.u.)$',y2label='$d|S|_{max}/dt\quad (a.u.)$',
-                figspath=figspath,figname=base_name+'smax')
+                plot_single(tp,xp,ylabel='$x_{max}\quad (a.u.)$',
+                    figspath=figspath,figname=base_name+'xp_bis')
 
             plot_single(sampled[6::sampling,0],sampled[6::sampling,1],ylabel='$x_{max}\quad (a.u.)$',
                 figspath=figspath,figname=base_name+'x')
 
-            plot_single(sampled[6::sampling,0],sampled[6::sampling,2],ylabel='$dx_{max}/dt\quad (a.u.)$',
-                figspath=figspath,figname=base_name+'dxdt')
-
-            plot_single(sampled[6::sampling,0],sampled[6::sampling,7],ylabel='$dI\quad (a.u.)$',
+            plot_single(sampled[6::sampling,0],sampled[6::sampling,7],ylabel='$I_{max}\quad (a.u.)$',
                 figspath=figspath,figname=base_name+'i')
-
-            plot_single(sampled[6::sampling,0],sampled[6::sampling,8],ylabel='$dI_{max}/dt\quad (a.u.)$',
-                figspath=figspath,figname=base_name+'didt')
 
             plot_single(sampled[6::sampling,0],sampled[6::sampling,9],ylabel='$|S|_{max}\quad (a.u.)$',
                 figspath=figspath,figname=base_name+'s')
 
-            plot_single(sampled[6::sampling,0],sampled[6::sampling,10],ylabel='$d|S|_{max}/dt\quad (a.u.)$',
-                figspath=figspath,figname=base_name+'dsdt')
-
             plot_single(tt,dx,ylabel='$dx_{max}/dt\quad (a.u.)$',
-                figspath=figspath,figname=base_name+'dxdt_bis')
+                figspath=figspath,figname=base_name+'dxdt_bis',ylim=[0,1],vrip=vrip)
+
+            plot_single(tt,xx,ylabel='$x_{max}\quad (a.u.)$',
+                figspath=figspath,figname=base_name+'x_bis',xrip=vrip*tt-5.0)
 
             plot_single(tt,di,ylabel='$dI_{max}/dt\quad (a.u.)$',
                 figspath=figspath,figname=base_name+'didt_bis')
@@ -299,14 +296,19 @@ def plot_together(x,y1,y2,xlabel='$t\quad (ct)^{-1}$',y1label='y1',y2label='y2',
         plt.savefig(os.path.join(figspath,figname+'.eps'),format='eps',dpi=320,bbox_inches='tight')
         plt.close()
 
-def plot_single(x,y,xlabel='$t\quad (ct)^{-1}$',ylabel='y',shape='.:',figspath='./_output',figname='figure'):
+def plot_single(x,y,xlabel='$t\quad (ct)^{-1}$',ylabel='y',shape='.:',figspath='./_output',figname='figure',ylim=None,vrip=None,xrip=None):
         plt.close('all')
         plt.figure()
         f, axarr = plt.subplots(1, 1,sharex=True)
         axarr.plot(x,y,shape)
+        if vrip is not None:
+            axarr.plot(x,vrip*np.ones(len(x)),'r--')
+        if xrip is not None:
+            axarr.plot(x,xrip,'r--')
         axarr.set_ylabel(ylabel)
         axarr.set_xlabel(xlabel)
-
+        if ylim is not None:
+            axarr.set_ylim(ylim)
         plt.draw()
         plt.savefig(os.path.join(figspath,figname+'.eps'),format='eps',dpi=320,bbox_inches='tight')
         plt.close()

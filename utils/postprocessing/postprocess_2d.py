@@ -1,8 +1,20 @@
+fontsize=18.0
 import os
 from glob import glob
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
+matplotlib.rcParams.update({'font.size': fontsize})
+matplotlib.rcParams.update({'font.weight': 'normal'})
+matplotlib.rcParams['axes.formatter.limits'] = [0,3]
+matplotlib.rcParams['mathtext.default'] = 'sf'
+matplotlib.rcParams['axes.formatter.use_mathtext'] = True
+matplotlib.rcParams['xtick.labelsize'] = fontsize
+matplotlib.rcParams['ytick.labelsize'] = fontsize
+matplotlib.rcParams['axes.labelsize'] = fontsize
+matplotlib.rcParams['lines.linewidth'] = 1.5
+matplotlib.rcParams['lines.markersize'] = 10
+matplotlib.rcParams['lines.color'] = 'r'
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.collections import PolyCollection
 from matplotlib.colors import colorConverter
@@ -14,7 +26,7 @@ from scipy.io import loadmat,savemat
 from matplotlib.streamplot import  streamplot
 
 # plot frame_plot_range together, define range
-frame_plot_range = range(1,101,1)
+frame_plot_range = range(1,201,1)
 
 def get_cmap(colormap='jet',num_colors=100):
     cmap = cm  = plt.get_cmap(colormap)
@@ -32,7 +44,11 @@ def get_smap(colormap='jet',vmin=0.0,vmax=10.0,num_colors=100):
 
 def get_color(value,cmap,vmin=0.0,vmax=10.0,num_colors=100):
     values    = np.arange(0,vmax+vmax/num_colors,vmax/num_colors)
-    colorVal  = cmap[np.where(values>=value)[0][0]]
+    try:
+        colorVal = cmap[np.where(values>=value)[0][0]]
+    except:
+        print np.where(values>=value)
+        colorVal = cmap[0]
     return colorVal
 
 def waterfall_plot(q,x,sampling=10,cmap=None,num_colors=100,outdir='./',outname='waterfall',format='eps',cbar_label='$|q| (a.u.)$'):
@@ -226,7 +242,7 @@ def assemble_q(path='./_output',frame_plot_range=[0],poynting=True,read_aux=Fals
     sol = {}
     
     print frame_plot_range
-    sampled = np.zeros([num_frames,9])
+    sampled = np.zeros([num_frames,14])
     plot_aux = True
     # load the frames and assemble values
     for f,frame in enumerate(frame_plot_range):
@@ -260,24 +276,32 @@ def assemble_q(path='./_output',frame_plot_range=[0],poynting=True,read_aux=Fals
             dl[k-1],ql[k-1] = extract_cut_line(q[k],grid['x'],grid['y'],plot=cut,num_points=1000,
                 outdir=os.path.join(figspath,'cut_x'),outname='cut_q'+str(k-1)+'_'+str(frame).zfill(4),format='png')
 
-
             Q_map_temp[k-1] = np.append(Q_map_temp[k-1],ql[k-1])
             d_map_temp[k-1] = np.append(d_map_temp[k-1],dl[k-1])
 
         sol['q'+str(f)] = q
 
         sampled[f,0] = solution['t']
-        sampled[f,1] = solution['xmax'].max()
-        sampled[f,2] = solution['ymax'].max()
+        try:
+            sampled[f,1] = np.max(solution['xmax'])
+        except:
+            print solution['xmax']
+            sampled[f,1] = sampled[f-1,1]
+        try:
+            sampled[f,2] = solution['ymax'].max()
+        except:
+            print solution['ymax']
+            sampled[f,2] = sampled[f-1,2]            
         sampled[f,3] = solution['q1'].max()
         sampled[f,4] = solution['q2'].max()
+        sampled[f,5] = np.max(np.sqrt(q[1]**2+q[2]**2))
+        sampled[f,6] = np.max(q[1]*q[2])
 
         if poynting:
             p1 = q.shape[1]/100
             p2 = q.shape[2]/50
             Sx,Sy = Poynting(q[:,::p1,::p2],plot=True,streamline=True,x=grid['x'][::p1,::p2],y=grid['y'][::p1,::p2],
                     outdir=os.path.join(figspath,'Poyinting'),suffix=str(frame).zfill(4),format='png',cut_long=True)
-        
 
         if split_q:
             for qn in range(0,len(q)):
@@ -285,7 +309,6 @@ def assemble_q(path='./_output',frame_plot_range=[0],poynting=True,read_aux=Fals
                 aux_temp = aux['aux'][qn,:,:,np.newaxis]
                 q_temp.tofile(os.path.join(binpath,'3D_q'+str(qn)+'.'+str(frame).zfill(4)))
                 aux_temp.tofile(os.path.join(binpath,'3D_aux'+str(qn)+'.'+str(frame).zfill(4)))
-
 
         if frame_split: 
             sol['Sx'+str(f)] = Sx
@@ -312,7 +335,7 @@ def postprocess(outdir='./_output',multiple=False,overwrite=False,sampling=5,sav
 
     for dirs in outdirs:
         print dirs
-        
+
         figspath = os.path.join(dirs,'_figures')
         binpath  = os.path.join(dirs,'_bin')
 
@@ -338,16 +361,64 @@ def postprocess(outdir='./_output',multiple=False,overwrite=False,sampling=5,sav
 
             colores = get_cmap(num_colors=summary['num_frames']+1)
             waterfall_plot(Q[0,:,:],d[0,0,:],sampling=sampling,cmap=colores,num_colors=summary['num_frames'],
-                outdir=figspath,outname='waterfall_q0_s'+str(sampling),cbar_label='$|q^0|\quad (a.u.)$')
+                outdir=figspath,outname='waterfall_q0_s'+str(sampling),cbar_label='$|q^0|_{max}\quad (a.u.)$')
             waterfall_plot(Q[1,:,:],d[1,0,:],sampling=sampling,cmap=colores,num_colors=summary['num_frames'],
-                outdir=figspath,outname='waterfall_q1_s'+str(sampling),cbar_label='$|q^1|\quad (a.u.)$')
+                outdir=figspath,outname='waterfall_q1_s'+str(sampling),cbar_label='$|q^1|_{max}\quad (a.u.)$')
+            waterfall_plot(np.sqrt(Q[0,:,:]**2+Q[1,:,:]**2),d[1,0,:],sampling=sampling,cmap=colores,num_colors=summary['num_frames'],
+                outdir=figspath,outname='waterfall_i_s'+str(sampling),cbar_label='$I_{max}\quad (a.u.)$')
+            waterfall_plot(Q[0,:,:]*Q[1,:,:],d[1,0,:],sampling=sampling,cmap=colores,num_colors=summary['num_frames'],
+                outdir=figspath,outname='waterfall_s_s'+str(sampling),cbar_label='$|S|_{max}\quad (a.u.)$')
             
+            sampled = summary['sampled']
+            #sampled[:,2] = np.gradient(sampled[:,1],sampled[2,0]-sampled[1,0])
+            sampled[:,7] = np.sqrt(sampled[:,3]**2 + sampled[:,4]**2)
+            sampled[:,9] = sampled[:,3]*sampled[:,4]
+
+            tt = sampled[6::3,0]
+            dt = tt[1] - tt[0]
+            xx = sampled[6::3,1]
+            ii = sampled[6::3,7]
+            ss = sampled[6::3,9]
+            dx = np.gradient(sampled[6::3,1],dt)
+            di = np.gradient(sampled[6::3,7],dt)
+            ds = np.gradient(sampled[6::3,9],dt)
+            base_name = ''
+            plot_single(tt,dx,ylabel='$dx_{max}/dt\quad (a.u.)$',
+                figspath=figspath,figname=base_name+'dxdt_bis',ylim=[0,1.2])
+            print di.min(),di.max(),ds.min(),ds.max()
+            plot_single(tt,di,ylabel='$dI_{max}/dt\quad (a.u.)$',
+                figspath=figspath,figname=base_name+'didt_bis')
+
+            plot_single(tt,ds,ylabel='$d|S|_{max}/dt\quad (a.u.)$',
+                figspath=figspath,figname=base_name+'dsdt_bis')
+
+            plot_single(tt,xx,ylabel='$x_{max}/dt\quad (a.u.)$',
+                figspath=figspath,figname=base_name+'xt_bis')
+
+            plot_single(tt,ii,ylabel='$I_{max}/dt\quad (a.u.)$',
+                figspath=figspath,figname=base_name+'it_bis')
+
+            plot_single(tt,ss,ylabel='$|S|_{max}/dt\quad (a.u.)$',
+                figspath=figspath,figname=base_name+'st_bis')
+
             if save_mat:
                 savemat(os.path.join(figspath,'summary'),summary)
 
+def plot_single(x,y,xlabel='$t\quad (ct)^{-1}$',ylabel='y',shape='.:',figspath='./_output',figname='figure',ylim=None):
+        plt.close('all')
+        plt.figure()
+        f, axarr = plt.subplots(1, 1,sharex=True)
+        axarr.plot(x,y,shape)
+        axarr.set_ylabel(ylabel)
+        axarr.set_xlabel(xlabel)
+        if ylim is not None:
+            axarr.set_ylim(ylim)
+        plt.draw()
+        plt.savefig(os.path.join(figspath,figname+'.eps'),format='eps',dpi=320,bbox_inches='tight')
+        plt.close()
+
 # num_frames = len(frame_plot_range)
 if __name__ == "__main__":
-    print 'la'
     from clawpack.pyclaw import util
     import sys
     args,app_args = util._info_from_argv(sys.argv)
