@@ -209,12 +209,12 @@ def intensity(current_data):
     return I
 
 def intensity_line(current_data):
-    p = current_data.q[0,:,:].shape[1]/2
+    p = current_data.q[0,:,:].shape[1]//2
     I = np.sqrt(current_data.q[1,:,p]**2 + current_data.q[2,:,p]**2)
     return I
 
 def refind_line(current_data):
-    p = current_data.q[0,:,:].shape[1]/2
+    p = current_data.q[0,:,:].shape[1]//2
     n = np.sqrt(current_data.aux[1,:,p]**2 + current_data.aux[2,:,p]**2)
     return n
 
