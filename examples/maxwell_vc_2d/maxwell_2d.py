@@ -14,22 +14,25 @@ y_upper = 50.0
 sy = y_upper-y_lower
 sx = x_upper-x_lower
 
-material = Material2D(shape='homogeneous',metal=False)
+material = Material2D(shape = 'homogeneous', metal = False)
 material.setup()
 material._calculate_n()
 
-def em2D(mx=128,my=128,num_frames=10,cfl=1.0,outdir='./_output',use_petsc=True, before_step=False,debug=False,heading='x',shape='off',nl=False,psi=True,conservative=True):
+# def em2D(mx = 128, my = 128, num_frames = 10, cfl = 1.0, outdir = './_output', use_petsc = True, before_step = False, debug = False, heading = 'x', shape = 'off', nl = False, psi = True, conservative = True):
+def em2D(mx = 128, my = 128, num_frames = 10, use_petsc = True, reconstruction_order = 5, lim_type = 2,  cfl = 1.0, conservative = True,
+         chi3 = 0.0, chi2 = 0.0, nl = False, psi = True, em = True, before_step = False, heading = 'x', shape = 'off', write_aux = True, wavelength = 1.0,
+         debug = False, outdir = './_output', output_style = 1):
+    
     import clawpack.petclaw as pyclaw
     import petsc4py.PETSc as MPI
 
-    source = Source2D(material,shape=shape,wavelength=2.0)
+    source = Source2D(material, shape = shape, wavelength = wavelength)
 
-    if shape=='off':
+    if shape == 'off':
         source.offset.fill(5.0)
-        if heading=='xy':
+        if heading == 'xy':
             source.offset[0] = sy/2.0
             source.offset[1] = sx/2.0
-            tf = 22.0
     else:
         source.offset[0] = -5.0
         source.offset[1] = sy/2.0
@@ -41,8 +44,8 @@ def em2D(mx=128,my=128,num_frames=10,cfl=1.0,outdir='./_output',use_petsc=True, 
     source.averaged = True
 
     #   grid pre calculations and domain setup
-    _, _, dt,tf = basics.grid_basic([[x_lower,x_upper,mx], [y_lower,y_upper,my]], 
-                                    cfl = cfl, co = material.co, v = source.v)
+    _, _, dt, tf = basics.grid_basic([[x_lower,x_upper,mx], [y_lower,y_upper,my]], 
+                                     cfl = cfl, co = material.co, v = source.v)
 
     if (debug and MPI.COMM_WORLD.rank==0):
         material.dump()
@@ -52,8 +55,8 @@ def em2D(mx=128,my=128,num_frames=10,cfl=1.0,outdir='./_output',use_petsc=True, 
     num_waves = 2
     num_aux   = 6
 
-    x = pyclaw.Dimension(x_lower,x_upper,mx, name = 'x')
-    y = pyclaw.Dimension(y_lower,y_upper,my, name = 'y')
+    x = pyclaw.Dimension(x_lower, x_upper, mx, name = 'x')
+    y = pyclaw.Dimension(y_lower, y_upper, my, name = 'y')
 
     domain = pyclaw.Domain([x,y])
 
@@ -61,8 +64,8 @@ def em2D(mx=128,my=128,num_frames=10,cfl=1.0,outdir='./_output',use_petsc=True, 
     solver = pyclaw.SharpClawSolver2D()
     solver.num_waves  = num_waves
     solver.num_eqn    = num_eqn
-    solver.reconstruction_order = 5
-    solver.lim_type = 2
+    solver.reconstruction_order = reconstruction_order
+    solver.lim_type = lim_type
 
     solver.dt_variable = True
     solver.dt_initial  = dt/2.0
@@ -88,7 +91,7 @@ def em2D(mx=128,my=128,num_frames=10,cfl=1.0,outdir='./_output',use_petsc=True, 
 
     solver.tfluct = maxwell_2d_tfluct
 
-    solver.cfl_max = cfl+0.5
+    solver.cfl_max = cfl + 0.5
     solver.cfl_desired = cfl
     solver.reflect_index = [1,0]
 
@@ -106,9 +109,9 @@ def em2D(mx=128,my=128,num_frames=10,cfl=1.0,outdir='./_output',use_petsc=True, 
     solver.bc_upper[0] = pyclaw.BC.wall
     solver.bc_upper[1] = pyclaw.BC.wall
 
-    solver.aux_bc_lower[1]= pyclaw.BC.wall
-    solver.aux_bc_upper[0]= pyclaw.BC.wall
-    solver.aux_bc_upper[1]= pyclaw.BC.wall
+    solver.aux_bc_lower[1] = pyclaw.BC.wall
+    solver.aux_bc_upper[0] = pyclaw.BC.wall
+    solver.aux_bc_upper[1] = pyclaw.BC.wall
 
 #   before step configure
     if before_step:
@@ -147,7 +150,8 @@ def em2D(mx=128,my=128,num_frames=10,cfl=1.0,outdir='./_output',use_petsc=True, 
     claw.solver = solver
     claw.solution = pyclaw.Solution(state,domain)
     claw.outdir = outdir
-    claw.write_aux_always = True
+    claw.write_aux_always = write_aux
+    claw.output_style = output_style
 
     return claw
 
