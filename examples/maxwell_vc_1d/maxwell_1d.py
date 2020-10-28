@@ -129,7 +129,6 @@ def em1D(mx = 1024, num_frames = 10, use_petsc = True, reconstruction_order = 5,
     claw.outdir = outdir
     claw.write_aux_always = True
     claw.output_style = output_style
-    claw.num_output_times = 10
 
     return claw
 
