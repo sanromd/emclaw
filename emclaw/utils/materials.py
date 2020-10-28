@@ -3,10 +3,10 @@ import pickle
 import os
 
 dim = {}
-dim['xyz'] = [0,1,2]
-dim['xy' ] = [0,1]
-dim['xz' ] = [0,2]
-dim['yz' ] = [1,2]
+dim['xyz'] = [0, 1, 2]
+dim['xy' ] = [0, 1]
+dim['xz' ] = [0, 2]
+dim['yz' ] = [1, 2]
 dim['x'  ] = [0]
 dim['y'  ] = [1]
 dim['z'  ] = [2]
@@ -89,34 +89,38 @@ class Material(object):
             os.makedirs(self._outdir)
         except:
             pass
-        f = open(os.path.join(self._outdir,'_material_'+str(uuid.uuid1())+'.tex'),'a')
+        f = open(os.path.join(self._outdir, '_material_' + str(uuid.uuid1() ) + '.tex'), 'a')
         f.write(strt)
         f.close()
 
-    def _dump(self,obj):
+    def _dump(self, obj):
         for attr in sorted(dir(obj)):
             try:
                 print("%s = %s" % (attr, getattr(obj, attr)))
             except:
                 pass
+        return
 
-    def plot(self,eta):
+    def plot(self, eta, figsize = (10, 10), save = False, outdir = None, savename = 'material_plot', extension = 'png'):
         import matplotlib
         # set matplotlib to work over X-forwarding
         matplotlib.use('Agg')
         from matplotlib import pylab as plt
-        plt.figure()
-        plt.pcolormesh(eta)
+        fig, ax = plt.subplots(figsize = figsize)
+        ax.pcolormesh(eta)
         plt.draw()
-        plt.savefig('./debug.png',dpi=320)
+        if save:
+            if outdir is None: outdir = self._outdir
+            plt.savefig(os.path.join(outdir, savename + '.' + extension), dpi = 320)
+        return
 
     def setaux_lower(self,state,dim,t,qbc,auxbc,num_ghost):
         grid = state.grid
-        grid.compute_c_centers_with_ghost(num_ghost,recompute=True)
+        setattr(grid, '_c_centers_with_ghost', grid.c_centers_with_ghost(num_ghost))
         
         if state.num_dim==1:
             x = grid.x.centers_with_ghost[:num_ghost]
-            auxbc[:,:num_ghost] = self.function(x,t)
+            auxbc[:,:num_ghost] = self.function(x, t)
         elif state.num_dim==2:
             x = grid._c_centers_with_ghost[0]
             y = grid._c_centers_with_ghost[1]
@@ -152,7 +156,7 @@ class Material(object):
 
     def setaux_upper(self,state,dim,t,qbc,auxbc,num_ghost):
         grid = state.grid
-        grid.compute_c_centers_with_ghost(num_ghost,recompute=True)
+        setattr(grid, '_c_centers_with_ghost', grid.c_centers_with_ghost(num_ghost))
         if state.num_dim==1:
             x = grid.x.centers_with_ghost[-num_ghost:]
             auxbc[:,-num_ghost:] = self.function(x,t)
@@ -262,8 +266,8 @@ class Material(object):
             self.function = self._homogeneous
         
         if self.shape.startswith('moving'):
-            self.offset         = np.zeros([self.num_dim,self.num_aux/2])
-            self.delta_velocity = np.zeros([self.num_dim,self.num_aux/2])
+            self.offset         = np.zeros([self.num_dim, self.num_aux//2])
+            self.delta_velocity = np.zeros([self.num_dim, self.num_aux//2])
             self._moving        = True
             self.update_at_each_stage = True
 

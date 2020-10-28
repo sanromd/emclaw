@@ -60,14 +60,12 @@ class Sources:
         arg = xo + v*t - x
         
         if self.averaged:
-            print('averaging')
             ddx = dx/2.0
             erravg = (np.sqrt(np.pi)*s*(erf((ddx + arg)/s) + erf((ddx - arg)/s)))/(2.0*dx)
         else:
             erravg = np.exp(-arg**2/s**2)
 
         if self.cut:
-            print('cutting')
             span = ((arg**2/s**2)<=(4.0*s))
             erravg = erravg*span
 
@@ -125,7 +123,7 @@ class Sources:
 
     def scattering_bc(self,state,dim,t,qbc,auxbc,num_ghost):
         grid = state.grid
-        grid.compute_c_centers_with_ghost(num_ghost,recompute=True)
+        setattr(grid, '_c_centers_with_ghost', grid.c_centers_with_ghost(num_ghost))
         t = state.t
         if state.num_dim==1:
             x = grid.x.centers_with_ghost[:num_ghost]
