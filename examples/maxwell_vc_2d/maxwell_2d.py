@@ -18,16 +18,16 @@ material = Material2D(shape = 'homogeneous', metal = False)
 material.setup()
 material._calculate_n()
 
-# def em2D(mx = 128, my = 128, num_frames = 10, cfl = 1.0, outdir = './_output', use_petsc = True, before_step = False, debug = False, heading = 'x', shape = 'off', nl = False, psi = True, conservative = True):
 def em2D(mx = 128, my = 128, num_frames = 10, use_petsc = True, reconstruction_order = 5, lim_type = 2,  cfl = 1.0, conservative = True,
-         chi3 = 0.0, chi2 = 0.0, nl = False, psi = True, em = True, before_step = False, heading = 'x', shape = 'off', write_aux = True, wavelength = 1.0,
-         debug = False, outdir = './_output', output_style = 1):
+         chi3 = 0.0, chi2 = 0.0, nl = False, psi = True, em = True, before_step = False, heading = 'x', shape = 'off', transversal_shape = 'plane', wavelength = 1.0, average_source = False,
+         debug = False, outdir = './_output', output_style = 1, output_format='hdf5', write_aux = True, disable_output = False, keep_copy = True, verbosity = 3):
     
     import clawpack.petclaw as pyclaw
     import petsc4py.PETSc as MPI
 
     source = Source2D(material, shape = shape, wavelength = wavelength)
-
+    source.amplitude[1] = source.amplitude[2] = 1000.0/material.zo
+    
     if shape == 'off':
         source.offset.fill(5.0)
         if heading == 'xy':
@@ -38,10 +38,10 @@ def em2D(mx = 128, my = 128, num_frames = 10, use_petsc = True, reconstruction_o
         source.offset[1] = sy/2.0
         source.transversal_offset = sy/2.0
         source.transversal_width = sy
-        source.transversal_shape = 'plane'
+        source.transversal_shape = transversal_shape
     source.setup()
     source.heading = heading
-    source.averaged = True
+    source.averaged = average_source
 
     #   grid pre calculations and domain setup
     _, _, dt, tf = basics.grid_basic([[x_lower,x_upper,mx], [y_lower,y_upper,my]], 
@@ -66,7 +66,6 @@ def em2D(mx = 128, my = 128, num_frames = 10, use_petsc = True, reconstruction_o
     solver.num_eqn    = num_eqn
     solver.reconstruction_order = reconstruction_order
     solver.lim_type = lim_type
-
     solver.dt_variable = True
     solver.dt_initial  = dt/2.0
     solver.dt_max      = dt
@@ -145,13 +144,21 @@ def em2D(mx = 128, my = 128, num_frames = 10, use_petsc = True, reconstruction_o
 
 #   controller
     claw = pyclaw.Controller()
+    claw.solution = pyclaw.Solution(state,domain)
+    claw.solver = solver
+    claw.keep_copy = keep_copy
     claw.tfinal = tf
     claw.num_output_times = num_frames
-    claw.solver = solver
-    claw.solution = pyclaw.Solution(state,domain)
-    claw.outdir = outdir
-    claw.write_aux_always = write_aux
     claw.output_style = output_style
+    if np.logical_or(disable_output, output_format == None):
+        claw.output_format = None
+    else:
+        claw.output_format = output_format
+        claw.outdir = outdir
+        claw.write_aux_always = write_aux
+    
+    if verbosity == False: verbosity = 0
+    claw.verbosity = verbosity
 
     return claw
 
